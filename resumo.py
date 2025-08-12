@@ -72,7 +72,6 @@ def mostrar_resumo_tipo():
         with st.spinner("Extraindo e resumindo..."):
             texto = textos_cache.get(file["name"])
             resumo = gerar_resumo_com_cache(file["name"], texto, tipo)
-            resumo = force_all_to_ol(resumo)  # Ajusta HTML para listas ordenadas
         st.markdown(resumo, unsafe_allow_html=True)  
 
     st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
