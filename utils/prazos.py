@@ -3,12 +3,12 @@ import tiktoken
 from prompts import PROMPTS_PADRONIZADOS
 from utils.classificar import criar_cliente_openai
 
-def contar_tokens(texto, modelo="gpt-3.5-turbo"):
+def contar_tokens(texto, modelo="gpt-4o-mini"):
     """Conta a quantidade de tokens de um texto dado um modelo."""
     enc = tiktoken.encoding_for_model(modelo)
     return len(enc.encode(texto))
 
-def dividir_em_chunks(texto, max_tokens=3000, modelo="gpt-3.5-turbo"):
+def dividir_em_chunks(texto, max_tokens=3000, modelo="gpt-4o-mini"):
     """
     Divide o texto em pedaços (chunks) que não ultrapassem max_tokens.
     Útil para textos grandes que precisam ser processados em partes.
@@ -18,7 +18,7 @@ def dividir_em_chunks(texto, max_tokens=3000, modelo="gpt-3.5-turbo"):
     chunks = [enc.decode(tokens[i:i+max_tokens]) for i in range(0, len(tokens), max_tokens)]
     return chunks
 
-def gerar_resumo_padronizado(texto, tipo_documento, modelo="gpt-3.5-turbo"):
+def gerar_resumo_padronizado(texto, tipo_documento, modelo="gpt-4o-mini"):
     """
     Gera um resumo detalhado e estruturado de um texto, adaptado ao tipo do documento.
     Usa prompts padronizados por tipo para direcionar a geração.
