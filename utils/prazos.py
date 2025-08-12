@@ -1,80 +1,172 @@
-from openai import OpenAI
-import tiktoken
-from prompts import PROMPTS_PADRONIZADOS
-from utils.classificar import criar_cliente_openai
+import streamlit as st
+from io import BytesIO
+from utils.classificar import classificar_documento, normalizar_tipo_documento, criar_cliente_openai
+from utils.extrair_texto import extrair_texto
+from utils.llm import contar_tokens, dividir_em_chunks
+from prompts import PROMPT_PRAZOS
 
-def contar_tokens(texto, modelo="gpt-4o-mini"):
-    """Conta a quantidade de tokens de um texto dado um modelo."""
-    enc = tiktoken.encoding_for_model(modelo)
-    return len(enc.encode(texto))
 
-def dividir_em_chunks(texto, max_tokens=3000, modelo="gpt-4o-mini"):
+def limitar_prazos(texto: str, max_itens: int = 10) -> list:
     """
-    Divide o texto em pedaços (chunks) que não ultrapassem max_tokens.
-    Útil para textos grandes que precisam ser processados em partes.
+    Filtra linhas que começam com marcadores típicos de tópicos de prazos.
+    Retorna até max_itens prazos encontrados.
     """
-    enc = tiktoken.encoding_for_model(modelo)
-    tokens = enc.encode(texto)
-    chunks = [enc.decode(tokens[i:i+max_tokens]) for i in range(0, len(tokens), max_tokens)]
-    return chunks
+    linhas = [
+        linha.strip("-•– ").strip()
+        for linha in texto.splitlines()
+        if linha.strip().startswith(("-", "•", "–"))
+    ]
+    return linhas[:max_itens] if linhas else []
 
-def gerar_resumo_padronizado(texto, tipo_documento, modelo="gpt-4o-mini"):
+@st.cache_data(show_spinner="Extraindo prazos...", ttl=3600)
+def extrair_prazos_importantes(file, filename, modelo="gpt-4o-mini") -> list:
     """
-    Gera um resumo detalhado e estruturado de um texto, adaptado ao tipo do documento.
-    Usa prompts padronizados por tipo para direcionar a geração.
-    Divide textos muito grandes em partes e gera resumos parciais antes do resumo final.
+    Extrai os prazos importantes de um documento usando o prompt específico.
+    Divide texto em partes se for muito longo para evitar limite de tokens.
+    Retorna lista filtrada e sem duplicatas.
     """
-    tipo = tipo_documento.strip()
-    prompt_base = PROMPTS_PADRONIZADOS.get(tipo, PROMPTS_PADRONIZADOS["default"])
+    texto = extrair_texto(file, filename)
 
-    if contar_tokens(texto, modelo) <= 3000:
-        partes = [texto]
-    else:
+    if contar_tokens(texto, modelo) > 10000:
         partes = dividir_em_chunks(texto, max_tokens=3000, modelo=modelo)
+    else:
+        partes = [texto]
 
-    resumos_parciais = []
-    for parte in partes:
-        prompt_resumo_parcial = f"""
-Você é um assistente técnico especializado em análise detalhada de documentos. Faça um resumo completo e detalhado do conteúdo abaixo, destacando todas as informações relevantes, sem omitir pontos importantes. Estruture o texto em tópicos claros.
+    prazos_extraidos = []
+
+    for i, parte in enumerate(partes):
+        prompt = f"""{PROMPT_PRAZOS}
 
 Texto:
-\"\"\"\n{parte}\n\"\"\"
+\"\"\"{parte}\"\"\"
 """
-        client = criar_cliente_openai()
-        resposta = client.chat.completions.create(
-            model=modelo,
-            messages=[{"role": "user", "content": prompt_resumo_parcial}],
-            temperature=0.2,
-            max_tokens=1000
-        )
-        resumos_parciais.append(resposta.choices[0].message.content.strip())
+        try:
+            client = criar_cliente_openai()
+            resposta = client.chat.completions.create(
+                model=modelo,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2
+            )
+            conteudo = resposta.choices[0].message.content.strip()
 
-    if len(resumos_parciais) == 1:
-        prompt_final = f"""
-{prompt_base}
+            topicos = limitar_prazos(conteudo)
+            prazos_filtrados = [
+                t for t in topicos
+                if "não especificado" not in t.lower()
+                and "ver cláusula" not in t.lower()
+                and len(t.split(":")) > 1
+            ]
+            prazos_extraidos.extend(prazos_filtrados)
 
-Conteúdo resumido:
-\"\"\"\n{resumos_parciais[0]}\n\"\"\"
+        except Exception as e:
+            prazos_extraidos.append(f"Erro ao processar parte {i+1}: {e}")
 
-Gere um resumo final detalhado e estruturado, seguindo o modelo acima, com ao menos 20 linhas.
-"""
-    else:
-        prompt_final = f"""
-Você é um assistente técnico. Com base nos resumos parciais abaixo, gere um **resumo final detalhado e padronizado**, estruturado, sem repetições, seguindo este modelo:
+    # Remove duplicatas e limita a 10 prazos
+    return list(dict.fromkeys(prazos_extraidos))[:10]
 
-{prompt_base}
+def mostrar_prazos_tipo():
+    """
+    Exibe interface Streamlit para mostrar prazos extraídos de documentos filtrados por tipo.
+    """
+    tipo = st.session_state.get("tipo_para_prazo", None)
+    arquivos = st.session_state.get("uploaded_files", None)
 
-Resumos parciais:
-\"\"\"\n{chr(10).join(resumos_parciais)}\n\"\"\"
+    if not tipo or not arquivos:
+        st.warning("Não há documentos para extrair prazos.")
+        return
 
-Gere um resumo final detalhado e estruturado, com ao menos 20 linhas.
-"""
+    st.markdown(f"""
+        <div style="
+            background-color: rgba(255, 255, 255, 0.85);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            color: black;">
+            <h1>Prazos do tipo: {tipo}</h1>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+    
     client = criar_cliente_openai()
-    resposta_final = client.chat.completions.create(
-        model=modelo,
-        messages=[{"role": "user", "content": prompt_final}],
-        temperature=0.1,
-        max_tokens=1500
-    )
+    
+    arquivos_selecionados = [
+        arq for arq in arquivos
+        if normalizar_tipo_documento(classificar_documento(arq["name"], client=client), arq["name"]) == tipo
+    ]
 
-    return resposta_final.choices[0].message.content.strip()
+    if not arquivos_selecionados:
+        st.info(f"Nenhum documento do tipo **{tipo}** foi encontrado.")
+        return
+
+    for file in arquivos_selecionados:
+        st.markdown("---")
+        st.markdown(f"### 📎 {file['name']}")
+        with st.spinner("Extraindo prazos..."):
+            prazos = extrair_prazos_importantes(BytesIO(file["content"]), file["name"])
+        if not prazos:
+            st.warning("Nenhum prazo encontrado.")
+        else:
+            for p in prazos:
+                st.markdown(f"- {p}")
+
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+
+    _, col1, _ = st.columns([1.6, 2, 1])
+    with col1:
+        st.button("Voltar ao menu de prazos", on_click=lambda: st.session_state.update({"page": "prazos"}))
+
+
+def mostrar_prazos():
+    """
+    Exibe interface principal de prazos com lista de documentos agrupados por tipo
+    e permite escolher tipo para extrair prazos detalhados.
+    """
+    st.markdown("""
+        <div style="
+            background-color: rgba(255, 255, 255, 0.80);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            color: black;">
+            <h1>Prazos por Tipo de Documento</h1>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<div style='margin-top: 50px;'></div>", unsafe_allow_html=True)
+
+    if "uploaded_files" not in st.session_state or not st.session_state.uploaded_files:
+        st.warning("Nenhum arquivo foi enviado. Volte à página de Upload.")
+        return
+
+    arquivos = st.session_state["uploaded_files"]
+    classificacoes = {}
+
+    client = criar_cliente_openai()
+
+    for file in arquivos:
+        tipo = normalizar_tipo_documento(classificar_documento(file["name"], client=client), file["name"])
+
+        if tipo not in classificacoes:
+            classificacoes[tipo] = []
+        classificacoes[tipo].append(file)
+
+    for tipo, arquivos_tipo in classificacoes.items():
+        with st.expander(f"{tipo} ({len(arquivos_tipo)} arquivo(s))"):
+            for file in arquivos_tipo:
+                st.markdown(f"- {file['name']}")
+
+    tipos_disponiveis = list(classificacoes.keys())
+
+    st.markdown("<div style='margin-top: 50px;'></div>", unsafe_allow_html=True)
+
+    # Selecionar tipo para extrair prazos
+    st.markdown(f"### Escolha o tipo de documento para extrair os prazos")
+    tipo_escolhido = st.selectbox("", tipos_disponiveis)
+
+    _, col1, _ = st.columns([1.6, 2, 1])
+    with col1:
+        if st.button("Extrair prazos deste tipo"):
+            st.session_state["tipo_para_prazo"] = tipo_escolhido
+            st.session_state["page"] = "prazos_tipo"
+            st.rerun()
