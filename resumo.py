@@ -3,7 +3,6 @@ from io import BytesIO
 from utils.classificar import classificar_com_cache, normalizar_tipo_documento
 from utils.extrair_texto import extrair_texto
 from utils.llm import gerar_resumo_padronizado
-from utils.html_fix import force_all_to_ol 
 from utils.classificar import criar_cliente_openai
 import os
 from openai import OpenAI
