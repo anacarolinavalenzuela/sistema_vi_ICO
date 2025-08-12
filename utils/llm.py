@@ -3,12 +3,12 @@ from prompts import PROMPTS_PADRONIZADOS
 from utils.classificar import criar_cliente_openai
 
 
-def contar_tokens(texto, modelo="gpt-3.5-turbo"):
+def contar_tokens(texto, modelo="gpt-4o-mini"):
     """Conta a quantidade de tokens de um texto dado um modelo."""
     enc = tiktoken.encoding_for_model(modelo)
     return len(enc.encode(texto))
 
-def dividir_em_chunks(texto, max_tokens=3000, modelo="gpt-3.5-turbo"):
+def dividir_em_chunks(texto, max_tokens=3000, modelo="gpt-4o-mini"):
     """
     Divide o texto em pedaços (chunks) que não ultrapassem max_tokens.
     Útil para textos grandes que precisam ser processados em partes.
