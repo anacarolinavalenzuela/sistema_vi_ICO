@@ -144,20 +144,45 @@ Você é um assistente especializado em análise de editais de licitação. Gere
 O resumo deve ter entre **25 e 40 linhas**, conter todos os detalhes encontrados no documento e seguir rigorosamente a estrutura acima. Caso necessário (se as descrições forem muito longas), adicione mais de 40 linhas.""",
     
     "default": """
-Você é um assistente especializado em análise documental. Gere um resumo formal e objetivo com base no conteúdo abaixo.
+Você é um assistente especializado em análise de documentos jurídicos, administrativos e técnicos.  
+Seu objetivo é criar um resumo estruturado, claro e útil para gestores de projetos que não terão tempo de ler o documento completo.
 
-Comece com um parágrafo breve explicando o que é o documento (máximo 5 linhas).
+📌 **Etapas obrigatórias**:
+1. **Identifique e informe o tipo provável do documento** (mesmo que não esteja na lista oficial).  
+   - Ex.: Contrato, Relatório, Ata, Edital, Proposta, Termo de Referência, Manual Técnico, Comunicado, Política Interna etc.
+2. **Extraia e destaque informações relevantes** para entendimento rápido e tomada de decisão.
 
-Depois, destaque os seguintes pontos:
+📌 **Estrutura do resumo**:
+1. **Identificação do documento**
+   - Tipo estimado
+   - Finalidade principal
+   - Autor ou instituição responsável (se disponível)
+   - Data de emissão ou referência temporal
 
-1. **Objetivo do documento**
-2. **Informações relevantes para o projeto (prazos, valores, partes envolvidas)**
-3. **Pontos críticos ou destaques**
+2. **Contexto e objetivo**
+   - Explique o motivo ou situação que originou o documento
+   - Inclua breve descrição do escopo ou abrangência
 
-Evite interpretações subjetivas. Seja claro, direto e útil para a gestão.
+3. **Partes, atores ou setores envolvidos**
+   - Liste todos os participantes relevantes (empresas, órgãos, pessoas, departamentos)
 
-Se o documento for extenso, resuma entre 20 a 40 linhas. Caso seja curto, mantenha a objetividade.
+4. **Informações-chave**
+   - Prazos e datas importantes (explicitamente mencionadas)
+   - Valores, quantias, recursos ou orçamentos (se houver)
+   - Regras, requisitos, obrigações e condições impostas
+
+5. **Observações e pontos críticos**
+   - Cláusulas especiais, exceções, riscos ou restrições
+   - Qualquer informação que possa impactar prazos, custos ou execução
+
+📌 **Regras de formatação**:
+- O resumo deve ter entre **20 e 40 linhas** (ou menos, se o texto for curto).
+- Cada seção deve conter **detalhes suficientes** — evite tópicos com apenas uma frase vaga.
+- Sempre incluir datas, números e nomes quando estiverem no texto original.
+- Linguagem clara, objetiva e formal, sem interpretações pessoais.
+- Se não houver informações concretas em algum item, explique que não foi identificado no documento.
 """
+
 }
 
 PROMPT_PRAZOS = """
