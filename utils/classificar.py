@@ -77,38 +77,55 @@ def classificar_documento(nome_arquivo: str, conteudo_texto: str = None, client=
     if eh_parte_de_edital(nome_arquivo):
         return "Edital de Licitação"
     
+    tipos_validos = [
+        "Contrato", "Termo Aditivo", "Relatório", "Ofício", "Ata", "Proposta", "Minuta",
+        "Termo de Apostilamento", "Edital de Licitação", "Termo de Referência"
+    ]
+
     if conteudo_texto and conteudo_texto.strip():
         prompt = f"""
-Classifique o tipo do documento com base no conteúdo abaixo:
+Classifique o documento com base no conteúdo abaixo.
 
-{conteudo_texto[:4000]}
+1. Se o documento corresponder claramente a um dos tipos da lista abaixo, retorne exatamente o nome desse tipo.
+2. Se não corresponder, sugira um tipo mais adequado em até 3 palavras (ex.: "Memorando Interno", "Política de Segurança").
+3. Sempre escolha o tipo que mais se aproxima do propósito do documento.
 
-Escolha apenas UMA destas opções:
-Contrato, Termo Aditivo, Relatório, Ofício, Ata, Proposta, Minuta,
-Termo de Apostilamento, Edital de Licitação, Termo de Referência, Outro.
+Lista oficial: {", ".join(tipos_validos)}
+
+Conteúdo:
+\"\"\"{conteudo_texto[:4000]}\"\"\"
 """
     else:
         prompt = f"""
-Classifique o tipo do documento com base no nome abaixo:
+Classifique o documento com base apenas no nome do arquivo.
 
-"{nome_arquivo}"
+1. Se o nome indicar claramente um dos tipos da lista abaixo, retorne exatamente o nome desse tipo.
+2. Se não corresponder, sugira um tipo mais adequado em até 3 palavras.
+3. Sempre escolha o tipo mais próximo do propósito do documento.
 
-Escolha apenas UMA destas opções:
-Contrato, Termo Aditivo, Relatório, Ofício, Ata, Proposta, Minuta,
-Termo de Apostilamento, Edital de Licitação, Termo de Referência, Outro.
+Lista oficial: {", ".join(tipos_validos)}
+
+Nome do arquivo: '{nome_arquivo}'
 """
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=20
+        temperature=0,
+        max_tokens=30
     )
 
     tipo_cru_raw = response.choices[0].message.content.strip()
-    tipo_cru = extrair_tipo_da_resposta(tipo_cru_raw)
-    tipo_normalizado = normalizar_tipo_documento(tipo_cru, nome_arquivo)
+
+    # Normalizar e mapear para tipos conhecidos
+    tipo_normalizado = normalizar_tipo_documento(tipo_cru_raw, nome_arquivo)
+
+    # Se não encontrar correspondência, usar o tipo sugerido pelo modelo
+    if tipo_normalizado == "Outro" and tipo_cru_raw.lower() not in [t.lower() for t in tipos_validos]:
+        return tipo_cru_raw.title()
 
     return tipo_normalizado
+
 
 
 @st.cache_data(show_spinner="Classificando os documentos...")
