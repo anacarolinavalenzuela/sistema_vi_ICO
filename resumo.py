@@ -1,11 +1,8 @@
 import streamlit as st
 from io import BytesIO
-from utils.classificar import classificar_com_cache, normalizar_tipo_documento
+from utils.classificar import classificar_com_cache, normalizar_tipo_documento, mostrar_classificacao_final
 from utils.extrair_texto import extrair_texto
 from utils.llm import gerar_resumo_padronizado
-from utils.classificar import criar_cliente_openai
-import os
-from openai import OpenAI
 
 @st.cache_data(show_spinner="Gerando resumo...")
 def gerar_resumo_com_cache(nome_arquivo, texto, tipo):
@@ -20,17 +17,27 @@ def gerar_resumo_com_cache(nome_arquivo, texto, tipo):
 
 def mostrar_resumo_tipo():
     """
-    Exibe resumos para os documentos filtrados por tipo escolhido na sessão.
-    Extrai texto, classifica documentos, filtra pelo tipo e gera resumos formatados.
+    Exibe resumos para os documentos filtrados pelo tipo confirmado na sessão.
+    Usa cache para texto e resumo para evitar múltiplas chamadas à API.
     """
     tipo = st.session_state.get("tipo_para_resumir", None)
-    arquivos = st.session_state.get("uploaded_files", None)
-
-    if not tipo or not arquivos:
-        st.warning("Não há documentos para resumir.")
+    if not tipo:
+        st.warning("Nenhum tipo selecionado para resumir.")
         return
 
-    # Cabeçalho da seção de resumo do tipo selecionado
+    # Obter classificação final confirmada
+    classificacoes = st.session_state.get("classificacao_final", {})
+    arquivos_selecionados = classificacoes.get(tipo, [])
+
+    if not arquivos_selecionados:
+        st.info(f"Nenhum documento do tipo **{tipo}** foi encontrado.")
+        return
+
+    # Inicializar cache de textos se ainda não existir
+    if "textos_cache" not in st.session_state:
+        st.session_state["textos_cache"] = {}
+
+    # Cabeçalho da seção de resumo
     st.markdown(f"""
         <div style="
             background-color: rgba(255, 255, 255, 0.85);
@@ -43,36 +50,22 @@ def mostrar_resumo_tipo():
         </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
-
-    arquivos_selecionados = []
-    textos_cache = {}
-
-    # Extrair texto e classificar documentos para filtrar por tipo desejado
-    for arq in arquivos:
-        texto_tmp = extrair_texto(BytesIO(arq["content"]), arq["name"])
-        textos_cache[arq["name"]] = texto_tmp  # <-- salvar no cache!
-        
-        tipo_classificado = normalizar_tipo_documento(
-            classificar_com_cache(arq["name"], texto_tmp),
-            arq["name"]
-        )
-        tipo_desejado = normalizar_tipo_documento(tipo)
-        if tipo_classificado == tipo_desejado:
-            arquivos_selecionados.append(arq)
-
-    if not arquivos_selecionados:
-        st.info(f"Nenhum documento do tipo **{tipo}** foi encontrado.")
-        return
-
-    # Para cada arquivo filtrado, gerar e mostrar resumo formatado
+    # Para cada arquivo filtrado, gerar e mostrar resumo
     for file in arquivos_selecionados:
         st.markdown("---")
-        st.markdown(f"### 📎 {file['name']}")
+        st.markdown(f"### 📎 {file['nome']}")
+
+        # Usar texto do cache ou extrair se não existir
+        if file["nome"] not in st.session_state["textos_cache"]:
+            texto = extrair_texto(BytesIO(file["conteudo"]), file["nome"])
+            st.session_state["textos_cache"][file["nome"]] = texto
+        else:
+            texto = st.session_state["textos_cache"][file["nome"]]
+
+        # Gerar resumo com cache
         with st.spinner("Extraindo e resumindo..."):
-            texto = textos_cache.get(file["name"])
-            resumo = gerar_resumo_com_cache(file["name"], texto, tipo)
-        st.markdown(resumo, unsafe_allow_html=True)  
+            resumo = gerar_resumo_com_cache(file["nome"], texto, tipo)
+        st.markdown(resumo, unsafe_allow_html=True)
 
     st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
 
@@ -80,6 +73,7 @@ def mostrar_resumo_tipo():
     _, col1, _ = st.columns([1.6, 2, 1])
     with col1:
         st.button("Voltar ao menu de resumos", on_click=lambda: st.session_state.update({"page": "resumo"}))
+
 
 
 def mostrar_resumo():
@@ -107,26 +101,10 @@ def mostrar_resumo():
         st.warning("Nenhum arquivo foi enviado. Volte à página de Upload.")
         return
 
-    files = st.session_state["uploaded_files"]
 
     # 1. Classificar documentos
-    st.markdown(f"### Classificação automática dos arquivos")
-    st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
-
-    classificacoes = {}
-
-    for file in files:
-        texto = extrair_texto(BytesIO(file["content"]), file["name"])
-        tipo = normalizar_tipo_documento(classificar_com_cache(file["name"], texto), file["name"])
-        if tipo not in classificacoes:
-            classificacoes[tipo] = []
-        classificacoes[tipo].append(file)
-
-    # Mostrar documentos agrupados por tipo com expander
-    for tipo, arquivos in classificacoes.items():
-        with st.expander(f"{tipo} ({len(arquivos)} arquivo(s))"):
-            for file in arquivos:
-                st.markdown(f"- {file['name']}")
+    st.markdown("### Classificação dos arquivos")
+    classificacoes = mostrar_classificacao_final()
 
     st.markdown("<div style='margin-top: 50px;'></div>", unsafe_allow_html=True)
 
@@ -134,7 +112,7 @@ def mostrar_resumo():
     st.markdown(f"### Escolha o tipo de documento que deseja resumir")
 
     tipos_disponiveis = list(classificacoes.keys())
-    tipo_escolhido = st.selectbox("", tipos_disponiveis)
+    tipo_escolhido = st.selectbox("", tipos_disponiveis)    
 
     st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
 
