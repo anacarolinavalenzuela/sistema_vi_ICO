@@ -330,6 +330,10 @@ elif st.session_state['page'] == 'prazos':
 
     st.markdown("<div style='margin-top: 50px;'></div>", unsafe_allow_html=True)
 
+    _, col1, _ = st.columns([0.7, 1, 0.3])
+    with col1:
+        st.button("Voltar para Classificação", on_click=mudar_pagina, args=('classificacao',))
+
     col_esq, col_btn1, col_espaco, col_btn2, col_espaco2, col_btn3, col_dir = st.columns([0.2, 0.75, 1, 0.75, 1, 0.5, 1.4])
     with col_btn1:
         st.button("Voltar ao Início", on_click=lambda: st.session_state.update({'page': 'inicio'}))
@@ -345,6 +349,10 @@ elif st.session_state['page'] == 'prazos_tipo':
     mostrar_prazos_tipo()
 
     st.markdown("<div style='margin-top: 50px;'></div>", unsafe_allow_html=True)
+
+    _, col1, _ = st.columns([0.7, 1, 0.3])
+    with col1:
+        st.button("Voltar para Classificação", on_click=mudar_pagina, args=('classificacao',))
 
     col_esq, col_btn1, col_espaco, col_btn2, col_espaco2, col_btn3, col_dir = st.columns([0.2, 0.75, 1, 0.75, 1, 0.5, 1.4])
     with col_btn1:
