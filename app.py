@@ -188,7 +188,7 @@ elif st.session_state['page'] == 'upload':
 
     with col_btn2:
         # Avança para o menu principal
-        st.button("Continuar", on_click=mudar_pagina, args=("menu",))
+        st.button("Continuar", on_click=mudar_pagina, args=("classificacao",))
 
     st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 
@@ -196,6 +196,40 @@ elif st.session_state['page'] == 'upload':
     _, col1, _ = st.columns([0.7, 1, 0.3])
     with col1:
         st.button("Voltar para o Início", on_click=mudar_pagina, args=('inicio',))
+
+
+## Página: Classificação
+elif st.session_state['page'] == 'classificacao':
+    st.markdown("<div style='margin-top: 130px;'></div>", unsafe_allow_html=True)
+
+    st.markdown(
+        """
+        <div style="
+            background-color: rgba(255, 255, 255, 0.85);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            color: black;
+            ">
+            <h1 style="margin-bottom: 10px;">Classificação dos Documentos</h1>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.markdown("<div style='margin-top: 50px;'></div>", unsafe_allow_html=True)
+
+    from utils.classificar import mostrar_classificacao_documentos
+    mostrar_classificacao_documentos()
+
+    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+
+    col_esq, col_btn1, col_espaco, col_btn2, col_dir = st.columns([1.2, 1.7, 0.1, 2, 1])
+
+    with col_btn1:
+        st.button("Voltar ao Início", on_click=mudar_pagina, args=('inicio',))
+    with col_btn2:
+        st.button("Voltar ao Upload", on_click=mudar_pagina, args=("upload",))
 
 
 ## Página: MENU
@@ -220,6 +254,7 @@ elif st.session_state['page'] == 'menu':
     st.markdown("<div style='margin-top: 50px;'></div>", unsafe_allow_html=True)
 
     # Botões para escolher a funcionalidade desejada
+
     col_esq, col_btn1, col_espaco, col_btn2, col_espaco2, col_btn3, col_dir = st.columns([0.01, 0.28, 0.6, 0.4, 0.5, 0.75, 0.2])
     with col_btn1:
         st.button("Resumo dos documentos", on_click=mudar_pagina, args=('resumo',))
@@ -230,10 +265,19 @@ elif st.session_state['page'] == 'menu':
 
     st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
 
-    # Botão para voltar ao upload
-    col_left, col_center, col_right = st.columns([1.3, 1, 1.5])
-    with col_center:
+    # Botão para voltar ao upload e classificação
+
+    col_esq, col_btn1, col_espaco, col_btn2, col_dir = st.columns([1.2, 1.7, 0.1, 2, 1])
+
+    with col_btn1:
         st.button("Voltar ao Upload de Arquivos", on_click=mudar_pagina, args=('upload',))
+    with col_btn2:
+        # Avança para o menu principal
+        st.button("Voltar para Classificação", on_click=mudar_pagina, args=("classificacao",))
+
+    _, col1, _ = st.columns([0.7, 1, 0.3])
+    with col1:
+        st.button("Voltar ao Início", on_click=mudar_pagina, args=('inicio',))
 
 
 ## Página: RESUMO
@@ -244,6 +288,11 @@ elif st.session_state['page'] == 'resumo':
     st.markdown("<div style='margin-top: 50px;'></div>", unsafe_allow_html=True)
 
     # Botões para navegação entre páginas
+
+    _, col1, _ = st.columns([0.7, 1, 0.3])
+    with col1:
+        st.button("Voltar para Classificação", on_click=mudar_pagina, args=('classificacao',))
+
     col_esq, col_btn1, col_espaco, col_btn2, col_espaco2, col_btn3, col_dir = st.columns([0.2, 0.75, 1, 0.75, 1, 0.5, 1.4])
     with col_btn1:
         st.button("Voltar ao Início", on_click=lambda: st.session_state.update({'page': 'inicio'}))
@@ -259,6 +308,10 @@ elif st.session_state['page'] == 'resumo_tipo':
     mostrar_resumo_tipo()
 
     st.markdown("<div style='margin-top: 50px;'></div>", unsafe_allow_html=True)
+
+    _, col1, _ = st.columns([0.7, 1, 0.3])
+    with col1:
+        st.button("Voltar para Classificação", on_click=mudar_pagina, args=('classificacao',))
 
     col_esq, col_btn1, col_espaco, col_btn2, col_espaco2, col_btn3, col_dir = st.columns([0.2, 0.75, 1, 0.75, 1, 0.5, 1.4])
     with col_btn1:
