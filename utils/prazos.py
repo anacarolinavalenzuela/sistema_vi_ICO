@@ -1,8 +1,9 @@
 import streamlit as st
 from io import BytesIO
-from utils.classificar import classificar_documento, normalizar_tipo_documento, criar_cliente_openai
+from utils.classificar import classificar_documento, normalizar_tipo_documento, mostrar_classificacao_final
 from utils.extrair_texto import extrair_texto
 from utils.llm import contar_tokens, dividir_em_chunks
+from utils.classificar import criar_cliente_openai
 from prompts import PROMPT_PRAZOS
 
 
@@ -19,7 +20,7 @@ def limitar_prazos(texto: str, max_itens: int = 10) -> list:
     return linhas[:max_itens] if linhas else []
 
 @st.cache_data(show_spinner="Extraindo prazos...", ttl=3600)
-def extrair_prazos_importantes(file, filename, modelo="gpt-4o-mini") -> list:
+def extrair_prazos_importantes(file, filename, modelo="gpt-3.5-turbo") -> list:
     """
     Extrai os prazos importantes de um documento usando o prompt específico.
     Divide texto em partes se for muito longo para evitar limite de tokens.
@@ -87,12 +88,10 @@ def mostrar_prazos_tipo():
     """, unsafe_allow_html=True)
 
     st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-    
-    client = criar_cliente_openai()
-    
+
     arquivos_selecionados = [
         arq for arq in arquivos
-        if normalizar_tipo_documento(classificar_documento(arq["name"], client=client), arq["name"]) == tipo
+        if normalizar_tipo_documento(classificar_documento(arq["name"]), arq["name"]) == tipo
     ]
 
     if not arquivos_selecionados:
@@ -139,30 +138,19 @@ def mostrar_prazos():
         st.warning("Nenhum arquivo foi enviado. Volte à página de Upload.")
         return
 
-    arquivos = st.session_state["uploaded_files"]
-    classificacoes = {}
-
-    client = criar_cliente_openai()
-
-    for file in arquivos:
-        tipo = normalizar_tipo_documento(classificar_documento(file["name"], client=client), file["name"])
-
-        if tipo not in classificacoes:
-            classificacoes[tipo] = []
-        classificacoes[tipo].append(file)
-
-    for tipo, arquivos_tipo in classificacoes.items():
-        with st.expander(f"{tipo} ({len(arquivos_tipo)} arquivo(s))"):
-            for file in arquivos_tipo:
-                st.markdown(f"- {file['name']}")
-
-    tipos_disponiveis = list(classificacoes.keys())
+    # 1. Classificar documentos
+    st.markdown("### Classificação dos arquivos")
+    classificacoes = mostrar_classificacao_final()
 
     st.markdown("<div style='margin-top: 50px;'></div>", unsafe_allow_html=True)
 
-    # Selecionar tipo para extrair prazos
+    # 2. Selecionar tipo para extrair prazos
     st.markdown(f"### Escolha o tipo de documento para extrair os prazos")
-    tipo_escolhido = st.selectbox("", tipos_disponiveis)
+    
+    tipos_disponiveis = list(classificacoes.keys())
+    tipo_escolhido = st.selectbox("", tipos_disponiveis) 
+
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
 
     _, col1, _ = st.columns([1.6, 2, 1])
     with col1:
